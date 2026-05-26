@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>힘찬매물 - 비공개 회원제 매물장</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Navigation Bar (Hidden initially) -->
+  <nav class="navbar" id="main-nav" style="display: none;">
+    <div class="nav-logo">
+      <i class="fa-solid fa-house-chimney"></i> 힘찬 비공개 매물장
+    </div>
+    <div class="nav-actions">
+      <div class="user-info">
+        <span id="user-display-name">사용자</span>님
+        <span class="user-badge" id="user-role-badge">회원</span>
+      </div>
+      <button class="btn btn-secondary" id="admin-toggle-btn" style="display: none;">
+        <i class="fa-solid fa-gauge-high"></i> 관리자 패널
+      </button>
+      <button class="btn btn-secondary" id="dashboard-toggle-btn" style="display: none;">
+        <i class="fa-solid fa-list"></i> 매물 대시보드
+      </button>
+      <button class="btn btn-danger" id="logout-btn">
+        <i class="fa-solid fa-right-from-bracket"></i> 로그아웃
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <main>
+    
+    <!-- 1. AUTH SECTION -->
+    <section id="auth-view" class="auth-container">
+      <div class="auth-card glass-panel">
+        <div class="auth-header">
+          <h1>HIMCHAN</h1>
+          <p>비공개 회원제 매물 정보 서비스</p>
+        </div>
+        
+        <div class="auth-tabs">
+          <div class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">로그인</div>
+          <div class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">회원가입</div>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form">
+          <div class="form-group">
+            <label for="login-username">아이디</label>
+            <input type="text" id="login-username" class="form-control" placeholder="아이디를 입력하세요" required>
+          </div>
+          <div class="form-group">
+            <label for="login-password">비밀번호</label>
+            <input type="password" id="login-password" class="form-control" placeholder="비밀번호를 입력하세요" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">로그인</button>
+        </form>
+
+        <!-- Register Form (Hidden initially) -->
+        <form id="register-form" style="display: none;">
+          <div class="form-group">
+            <label for="register-username">아이디</label>
+            <input type="text" id="register-username" class="form-control" placeholder="사용할 아이디" required>
+          </div>
+          <div class="form-group">
+            <label for="register-password">비밀번호</label>
+            <input type="password" id="register-password" class="form-control" placeholder="비밀번호 (영문, 숫자 조합)" required>
+          </div>
+          <div class="form-group">
+            <label for="register-name">이름 (실명)</label>
+            <input type="text" id="register-name" class="form-control" placeholder="홍길동" required>
+          </div>
+          <div class="form-group">
+            <label for="register-phone">연락처</label>
+            <input type="text" id="register-phone" class="form-control" placeholder="010-1234-5678" required>
+          </div>
+          <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 10px;">회원가입 신청</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 2. WAITING APPROVAL SECTION -->
+    <section id="waiting-view" class="auth-container" style="display: none;">
+      <div class="wait-screen glass-panel">
+        <div class="wait-icon">
+          <i class="fa-solid fa-user-clock"></i>
+        </div>
+        <h2>승인 대기 중</h2>
+        <p>회원 가입 신청이 성공적으로 접수되었습니다.<br>관리자의 가입 승인 후에 서비스를 이용하실 수 있습니다.</p>
+        <button class="btn btn-secondary" onclick="logout()">로그아웃 후 새로고침</button>
+      </div>
+    </section>
+
+    <!-- 3. DASHBOARD SECTION -->
+    <section id="dashboard-view" class="dashboard-container" style="display: none;">
+      <div class="dashboard-header">
+        <div class="dashboard-title">
+          <h2>실시간 비공개 매물 대시보드</h2>
+          <p>등록된 전체 매물 정보를 실시간으로 확인하고 상세 검색할 수 있습니다.</p>
+        </div>
+      </div>
+
+      <!-- Filter Panel -->
+      <div class="filter-panel glass-panel">
+        <div class="filter-grid">
+          <!-- Text Search -->
+          <div class="form-group" style="grid-column: span 2;">
+            <label for="filter-search">통합 검색</label>
+            <input type="text" id="filter-search" class="form-control" placeholder="주소, 상호, 비고 키워드 검색...">
+          </div>
+          <!-- Region Filter -->
+          <div class="form-group">
+            <label for="filter-region">지역 선택</label>
+            <select id="filter-region" class="form-control">
+              <option value="">전체 지역</option>
+            </select>
+          </div>
+          <!-- Sheet Filter -->
+          <div class="form-group">
+            <label for="filter-sheet">출처 시트</label>
+            <select id="filter-sheet" class="form-control">
+              <option value="">전체 시트</option>
+              <option value="26년">26년 매물</option>
+              <option value="11월27일">11월 27일 매물</option>
+              <option value="Sheet1">Sheet 1</option>
+              <option value="Sheet2">Sheet 2</option>
+              <option value="수동 등록">수동 등록 매물</option>
+            </select>
+          </div>
+          <!-- Area Range -->
+          <div class="form-group">
+            <label>평수 범위 (평)</label>
+            <div class="filter-group-range">
+              <input type="number" id="filter-min-area" class="form-control" placeholder="최소" min="0">
+              <span>~</span>
+              <input type="number" id="filter-max-area" class="form-control" placeholder="최대" min="0">
+            </div>
+          </div>
+          <!-- Deposit Range -->
+          <div class="form-group">
+            <label>보증금 범위 (만원)</label>
+            <div class="filter-group-range">
+              <input type="number" id="filter-min-deposit" class="form-control" placeholder="최소" min="0">
+              <span>~</span>
+              <input type="number" id="filter-max-deposit" class="form-control" placeholder="최대" min="0">
+            </div>
+          </div>
+          <!-- Rent Range -->
+          <div class="form-group">
+            <label>임대료 범위 (만원)</label>
+            <div class="filter-group-range">
+              <input type="number" id="filter-min-rent" class="form-control" placeholder="최소" min="0">
+              <span>~</span>
+              <input type="number" id="filter-max-rent" class="form-control" placeholder="최대" min="0">
+            </div>
+          </div>
+          <!-- Premium Range -->
+          <div class="form-group">
+            <label>권리금 범위 (만원)</label>
+            <div class="filter-group-range">
+              <input type="number" id="filter-min-premium" class="form-control" placeholder="최소" min="0">
+              <span>~</span>
+              <input type="number" id="filter-max-premium" class="form-control" placeholder="최대" min="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-actions">
+          <button class="btn btn-secondary" onclick="resetFilters()">
+            <i class="fa-solid fa-arrows-rotate"></i> 초기화
+          </button>
+          <button class="btn btn-primary" onclick="loadProperties(1)">
+            <i class="fa-solid fa-magnifying-glass"></i> 검색하기
+          </button>
+        </div>
+      </div>
+
+      <div class="properties-count">
+        총 <span id="total-properties-count">0</span>개의 매물이 검색되었습니다.
+      </div>
+
+      <!-- Properties Grid -->
+      <div class="properties-grid" id="properties-list">
+        <!-- Dynamic property cards inject here -->
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination" id="properties-pagination">
+        <!-- Pagination controls dynamically inject here -->
+      </div>
+    </section>
+
+    <!-- 4. ADMIN SECTION -->
+    <section id="admin-view" class="dashboard-container" style="display: none;">
+      <div class="dashboard-header">
+        <div class="dashboard-title">
+          <h2>관리자 통제실 (Admin Panel)</h2>
+          <p>회원 가입을 승인하고 엑셀 파일 관리 및 매물을 제어합니다.</p>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+        
+        <!-- Column 1: Member Management & Properties CSV upload -->
+        <div>
+          <!-- Member Approval List -->
+          <div class="admin-section glass-panel">
+            <h3><i class="fa-solid fa-users-gear"></i> 회원 가입 및 승인 관리</h3>
+            <div class="admin-table-wrapper">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>이름</th>
+                    <th>아이디</th>
+                    <th>연락처</th>
+                    <th>가입일</th>
+                    <th>상태</th>
+                    <th>동작</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-list">
+                  <!-- Dynamic user list inject here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Excel upload and Database Sync -->
+          <div class="admin-section glass-panel">
+            <h3><i class="fa-solid fa-file-excel"></i> 엑셀 파일 대량 적재</h3>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+              매물 엑셀 파일을 업로드하여 기존 데이터를 갱신하거나 추가할 수 있습니다. 
+              시트명 `26년`, `11월27일`이 정의되어 있어야 정상적으로 파싱됩니다.
+            </p>
+            <form id="excel-upload-form" style="display: flex; gap: 15px; align-items: center;">
+              <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="form-control" style="width: auto; flex: 1;" required>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="excel-clear-db" style="transform: scale(1.2);"> 
+                <label for="excel-clear-db" style="font-size: 0.85rem; color: var(--text-secondary); cursor: pointer;">기존 데이터 초기화</label>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-upload"></i> 일괄 적재</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Column 2: Individual Property CRUD (Quick Addition) -->
+        <div>
+          <div class="admin-section glass-panel">
+            <h3><i class="fa-solid fa-circle-plus"></i> 신규 매물 직접 등록</h3>
+            <form id="property-crud-form">
+              <input type="hidden" id="crud-property-id">
+              <div class="form-group">
+                <label for="crud-address">주소 <span style="color: var(--accent-red);">*</span></label>
+                <input type="text" id="crud-address" class="form-control" placeholder="예: 서울 강동구 성내동 555-8" required>
+              </div>
+              <div class="form-group">
+                <label for="crud-shop-name">상호 / 매물명</label>
+                <input type="text" id="crud-shop-name" class="form-control" placeholder="예: 엄마밥상">
+              </div>
+              <div class="form-group">
+                <label for="crud-map-url">네이버지도 바로가기 URL</label>
+                <input type="url" id="crud-map-url" class="form-control" placeholder="https://map.naver.com/...">
+              </div>
+              <div class="form-group">
+                <label for="crud-floor">층수</label>
+                <input type="text" id="crud-floor" class="form-control" placeholder="예: 1층">
+              </div>
+              <div class="filter-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                <div class="form-group">
+                  <label for="crud-area">평수 (평)</label>
+                  <input type="number" step="0.01" id="crud-area" class="form-control" placeholder="0">
+                </div>
+                <div class="form-group">
+                  <label for="crud-deposit">보증금 (만원)</label>
+                  <input type="number" id="crud-deposit" class="form-control" placeholder="0">
+                </div>
+              </div>
+              <div class="filter-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0;">
+                <div class="form-group">
+                  <label for="crud-rent">임대료 (만원)</label>
+                  <input type="number" id="crud-rent" class="form-control" placeholder="0">
+                </div>
+                <div class="form-group">
+                  <label for="crud-premium">권리금 (만원)</label>
+                  <input type="number" id="crud-premium" class="form-control" placeholder="0">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="crud-maintenance">관리비 (만원)</label>
+                <input type="number" id="crud-maintenance" class="form-control" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label for="crud-note">비고 (상세 특징)</label>
+                <textarea id="crud-note" class="form-control" rows="3" placeholder="기타 임대 조건, 주차 여부, 유동인구 특징 등..."></textarea>
+              </div>
+              <div style="display: flex; gap: 10px; margin-top: 25px;">
+                <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="clearCrudForm()">취소</button>
+                <button type="submit" class="btn btn-success" style="flex: 2;" id="crud-submit-btn">매물 등록</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Property Details Modal -->
+  <div class="modal" id="property-modal">
+    <div class="modal-content glass-panel">
+      <span class="modal-close" onclick="closePropertyModal()">&times;</span>
+      <div class="modal-title" id="modal-shop-name">매물 상세 정보</div>
+      <div style="border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <div style="margin-bottom: 20px;">
+          <h4 style="color: var(--text-secondary); margin-bottom: 5px; font-size: 0.9rem;">주소</h4>
+          <p id="modal-address" style="font-size: 1.1rem; font-weight: 500;"></p>
+        </div>
+        
+        <div class="property-details" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 25px; padding: 20px;">
+          <div class="detail-item">
+            <span class="detail-label">층수</span>
+            <span class="detail-value" id="modal-floor">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">평수</span>
+            <span class="detail-value" id="modal-area">-</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">관리비</span>
+            <span class="detail-value" id="modal-maintenance">-</span>
+          </div>
+          <div class="detail-item" style="margin-top: 15px;">
+            <span class="detail-label">보증금</span>
+            <span class="detail-value price" id="modal-deposit">-</span>
+          </div>
+          <div class="detail-item" style="margin-top: 15px;">
+            <span class="detail-label">임대료</span>
+            <span class="detail-value price" id="modal-rent">-</span>
+          </div>
+          <div class="detail-item" style="margin-top: 15px;">
+            <span class="detail-label">권리금</span>
+            <span class="detail-value price" id="modal-premium">-</span>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 25px;">
+          <h4 style="color: var(--text-secondary); margin-bottom: 8px; font-size: 0.9rem;">비고</h4>
+          <p id="modal-note" style="line-height: 1.6; background: rgba(15, 23, 42, 0.04); padding: 15px; border-radius: 8px; font-size: 0.95rem; min-height: 100px; white-space: pre-wrap;"></p>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span class="property-sheet-badge" id="modal-sheet-badge">26년</span>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" id="modal-edit-btn" style="display: none;">수정</button>
+            <a href="#" target="_blank" class="btn btn-primary" id="modal-map-btn">
+              <i class="fa-solid fa-map-location-dot"></i> 네이버지도 바로가기
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

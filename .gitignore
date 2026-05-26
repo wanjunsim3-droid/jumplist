@@ -1,0 +1,12 @@
+node_modules/
+database.sqlite
+uploads/
+.env
+.gemini/
+scratch/
+inspect_excel.py
+excel_info.json
+inspect_links.js
+inspect_formulas.js
+check_empty_maps.js
+*task*.log
