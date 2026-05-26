@@ -1,10 +1,42 @@
 // ============================================================
+// 안전한 로컬 스토리지 래퍼 (Safe LocalStorage Wrapper for Mobile)
+// ============================================================
+const inMemoryStorage = {};
+
+function safeGetItem(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch (e) {
+    console.warn(`[Storage] localStorage.getItem failed for key "${key}":`, e);
+    return inMemoryStorage[key] || null;
+  }
+}
+
+function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    console.warn(`[Storage] localStorage.setItem failed for key "${key}":`, e);
+    inMemoryStorage[key] = value;
+  }
+}
+
+function safeRemoveItem(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    console.warn(`[Storage] localStorage.removeItem failed for key "${key}":`, e);
+    delete inMemoryStorage[key];
+  }
+}
+
+// ============================================================
 // 카카오 알림 기능 (Kakao Notification)
 // ============================================================
 let kakaoInitialized = false;
 
 function initKakao() {
-  const appKey = localStorage.getItem('kakao_app_key');
+  const appKey = safeGetItem('kakao_app_key');
   if (!appKey) return;
   try {
     if (typeof Kakao === 'undefined') return;
@@ -18,8 +50,13 @@ function initKakao() {
 }
 
 function isKakaoConnected() {
-  if (!kakaoInitialized || typeof Kakao === 'undefined') return false;
-  return !!Kakao.Auth.getAccessToken();
+  try {
+    if (!kakaoInitialized || typeof Kakao === 'undefined' || !Kakao.Auth) return false;
+    return !!Kakao.Auth.getAccessToken();
+  } catch (e) {
+    console.warn('[Kakao] connection check failed:', e);
+    return false;
+  }
 }
 
 function updateKakaoStatusUI() {
@@ -32,7 +69,7 @@ function updateKakaoStatusUI() {
 
   if (!dot) return;
 
-  const appKey = localStorage.getItem('kakao_app_key');
+  const appKey = safeGetItem('kakao_app_key');
   if (keyInput && appKey) keyInput.value = appKey;
 
   if (isKakaoConnected()) {
@@ -63,7 +100,7 @@ function saveKakaoAppKey() {
     showToast('앱 키를 입력해 주세요.', 'error');
     return;
   }
-  localStorage.setItem('kakao_app_key', key);
+  safeSetItem('kakao_app_key', key);
   kakaoInitialized = false;
   initKakao();
   showToast('앱 키가 저장되었습니다. 이제 카카오 로그인을 진행해 주세요.', 'success');
@@ -71,8 +108,8 @@ function saveKakaoAppKey() {
 }
 
 function kakaoLogin() {
-  if (!kakaoInitialized) {
-    showToast('먼저 카카오 앱 키를 저장해 주세요.', 'error');
+  if (!kakaoInitialized || typeof Kakao === 'undefined' || !Kakao.Auth) {
+    showToast('카카오 SDK가 준비되지 않았습니다. 앱 키 확인 및 새로고침 후 다시 시도해 주세요.', 'error');
     return;
   }
   Kakao.Auth.login({
@@ -89,7 +126,7 @@ function kakaoLogin() {
 }
 
 function kakaoLogout() {
-  if (!kakaoInitialized) return;
+  if (!kakaoInitialized || typeof Kakao === 'undefined' || !Kakao.Auth) return;
   Kakao.Auth.logout(function () {
     showToast('카카오 연결이 해제되었습니다.', 'success');
     updateKakaoStatusUI();
@@ -156,7 +193,7 @@ let currentLimit = 12;
 
 // Mock database in localStorage
 function getLocalUsers() {
-  let users = localStorage.getItem('mock_users');
+  let users = safeGetItem('mock_users');
   if (!users) {
     // Default Admin account
     users = [
@@ -171,7 +208,7 @@ function getLocalUsers() {
         created_at: new Date().toISOString()
       }
     ];
-    localStorage.setItem('mock_users', JSON.stringify(users));
+    safeSetItem('mock_users', JSON.stringify(users));
   } else {
     users = JSON.parse(users);
   }
@@ -179,20 +216,34 @@ function getLocalUsers() {
 }
 
 function saveLocalUsers(users) {
-  localStorage.setItem('mock_users', JSON.stringify(users));
+  safeSetItem('mock_users', JSON.stringify(users));
 }
 
 // Load App Initial State
 document.addEventListener('DOMContentLoaded', async () => {
   // Check if session token exists (we use username as a simple session token in mock mode)
-  const token = localStorage.getItem('token');
-  const sessionUser = localStorage.getItem('session_user');
+  const token = safeGetItem('token');
+  const sessionUser = safeGetItem('session_user');
   
   // Pre-fetch all property data
   await fetchPropertiesJson();
 
   // Kakao SDK 초기화
   initKakao();
+
+  // 연락처 자동 하이픈 이벤트 바인딩
+  const registerPhoneInput = document.getElementById('register-phone');
+  if (registerPhoneInput) {
+    registerPhoneInput.addEventListener('input', (e) => {
+      let val = e.target.value.replace(/[^0-9]/g, '');
+      if (val.length > 3 && val.length <= 7) {
+        val = val.substring(0, 3) + '-' + val.substring(3);
+      } else if (val.length > 7) {
+        val = val.substring(0, 3) + '-' + val.substring(3, 7) + '-' + val.substring(7, 11);
+      }
+      e.target.value = val;
+    });
+  }
 
   if (token && sessionUser) {
     currentUser = JSON.parse(sessionUser);
@@ -202,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const updatedUser = users.find(u => u.username === currentUser.username);
     if (updatedUser) {
       currentUser = updatedUser;
-      localStorage.setItem('session_user', JSON.stringify(currentUser));
+      safeSetItem('session_user', JSON.stringify(currentUser));
     }
 
     if (currentUser.role === 'ADMIN') {
@@ -336,8 +387,8 @@ function handleLogin(e) {
 
   // Setup session mock token
   currentUser = user;
-  localStorage.setItem('token', 'mock_token_' + user.username);
-  localStorage.setItem('session_user', JSON.stringify(user));
+  safeSetItem('token', 'mock_token_' + user.username);
+  safeSetItem('session_user', JSON.stringify(user));
 
   showToast('성공적으로 로그인되었습니다.', 'success');
 
@@ -388,8 +439,8 @@ function handleRegister(e) {
 
 // Logout Action
 function logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('session_user');
+  safeRemoveItem('token');
+  safeRemoveItem('session_user');
   currentUser = null;
   showView('auth');
 }
