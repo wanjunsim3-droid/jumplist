@@ -50,6 +50,23 @@ function shouldSkipRow(row) {
   return false;
 }
 
+function isUrlBroken(url) {
+  try {
+    const decoded = decodeURIComponent(url);
+    if (/[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decoded)) return true;
+    
+    // 디코딩했을 때 한글이 전혀 없고 라틴1 깨짐 문자(ì, ë, ê, í 등)가 들어있는 경우 깨진 링크로 판단
+    const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(decoded);
+    const hasLatinCorrupt = /[ìëêíæå]/.test(decoded);
+    if (!hasKorean && hasLatinCorrupt) {
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return true;
+  }
+}
+
 // Extract hyperlink Target if present, otherwise fallback to generating Naver Map search link
 function getMapUrl(sheet, r, c, val, address) {
   const cellAddress = XLSX.utils.encode_cell({ r, c });
@@ -81,6 +98,16 @@ function getMapUrl(sheet, r, c, val, address) {
     }
   }
 
+  // 복구 후에도 URL이 깨진 경우 → 주소로 재생성
+  if (url && isUrlBroken(url)) {
+    if (address && address.trim() !== '') {
+      const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
+      console.log(`  [URL복구] ID주소: ${address} → 주소 기반 URL 재생성 (깨진 URL 판정)`);
+      return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
+    }
+    return '';
+  }
+
   // If URL is not valid, generate a Naver Map search URL from the address
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     if (address && address.trim() !== '') {
@@ -99,8 +126,23 @@ function getMapUrl(sheet, r, c, val, address) {
     const queryPart = url.substring(prefix.length);
     try {
       const decodedQuery = decodeURIComponent(queryPart);
+      // 디코딩된 검색어가 깨진 경우(대체문자 포함 또는 한글 미포함 라틴1 조합 존재 시) 주소로 대체
+      const isBroken = /[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decodedQuery) ||
+                       (!/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(decodedQuery) && /[ìëêíæå]/.test(decodedQuery));
+      if (isBroken) {
+        if (address && address.trim() !== '') {
+          const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
+          console.log(`  [URL복구] 검색어 깨짐: ${address} → 주소 기반 URL 재생성`);
+          return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
+        }
+      }
       url = prefix + encodeURIComponent(decodedQuery);
     } catch (e) {
+      // 디코딩 실패 시 주소로 대체
+      if (address && address.trim() !== '') {
+        const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
+        return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
+      }
       url = prefix + encodeURIComponent(queryPart);
     }
   }

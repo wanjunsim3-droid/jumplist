@@ -40,10 +40,17 @@ function shouldSkipRow(row) {
 }
 
 function isUrlBroken(url) {
-  // URL에 대체 문자(U+FFFD), 제어문자, null 바이트가 있으면 깨진 URL
   try {
     const decoded = decodeURIComponent(url);
-    return /[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decoded);
+    if (/[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decoded)) return true;
+    
+    // 디코딩했을 때 한글이 전혀 없고 라틴1 깨짐 문자(ì, ë, ê, í 등)가 들어있는 경우 깨진 링크로 판단
+    const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(decoded);
+    const hasLatinCorrupt = /[ìëêíæå]/.test(decoded);
+    if (!hasKorean && hasLatinCorrupt) {
+      return true;
+    }
+    return false;
   } catch (e) {
     return true;
   }
@@ -83,7 +90,7 @@ function getMapUrl(sheet, r, c, val, address) {
   if (url && isUrlBroken(url)) {
     if (address && address.trim() !== '') {
       const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
-      console.log(`  [URL복구] ID주소: ${address} → 주소 기반 URL 재생성`);
+      console.log(`  [URL복구] ID주소: ${address} → 주소 기반 URL 재생성 (깨진 URL 판정)`);
       return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
     }
     return '';
@@ -105,8 +112,10 @@ function getMapUrl(sheet, r, c, val, address) {
     const queryPart = url.substring(prefix.length);
     try {
       const decodedQuery = decodeURIComponent(queryPart);
-      // 디코딩된 검색어가 깨진 경우 주소로 대체
-      if (/[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decodedQuery)) {
+      // 디코딩된 검색어가 깨진 경우(대체문자 포함 또는 한글 미포함 라틴1 조합 존재 시) 주소로 대체
+      const isBroken = /[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decodedQuery) ||
+                       (!/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(decodedQuery) && /[ìëêíæå]/.test(decodedQuery));
+      if (isBroken) {
         if (address && address.trim() !== '') {
           const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
           console.log(`  [URL복구] 검색어 깨짐: ${address} → 주소 기반 URL 재생성`);
