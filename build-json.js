@@ -39,6 +39,16 @@ function shouldSkipRow(row) {
   return false;
 }
 
+function isUrlBroken(url) {
+  // URL에 대체 문자(U+FFFD), 제어문자, null 바이트가 있으면 깨진 URL
+  try {
+    const decoded = decodeURIComponent(url);
+    return /[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decoded);
+  } catch (e) {
+    return true;
+  }
+}
+
 function getMapUrl(sheet, r, c, val, address) {
   const cellAddress = XLSX.utils.encode_cell({ r, c });
   const cell = sheet[cellAddress];
@@ -69,6 +79,16 @@ function getMapUrl(sheet, r, c, val, address) {
     }
   }
 
+  // 복구 후에도 URL이 깨진 경우 → 주소로 재생성
+  if (url && isUrlBroken(url)) {
+    if (address && address.trim() !== '') {
+      const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
+      console.log(`  [URL복구] ID주소: ${address} → 주소 기반 URL 재생성`);
+      return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
+    }
+    return '';
+  }
+
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     if (address && address.trim() !== '') {
       const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
@@ -85,9 +105,32 @@ function getMapUrl(sheet, r, c, val, address) {
     const queryPart = url.substring(prefix.length);
     try {
       const decodedQuery = decodeURIComponent(queryPart);
+      // 디코딩된 검색어가 깨진 경우 주소로 대체
+      if (/[\uFFFD\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(decodedQuery)) {
+        if (address && address.trim() !== '') {
+          const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
+          console.log(`  [URL복구] 검색어 깨짐: ${address} → 주소 기반 URL 재생성`);
+          return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
+        }
+      }
       url = prefix + encodeURIComponent(decodedQuery);
     } catch (e) {
+      // 디코딩 실패 시 주소로 대체
+      if (address && address.trim() !== '') {
+        const cleanAddr = address.replace(/\*공실/g, '').replace(/\*/g, '').trim();
+        return `https://map.naver.com/p/search/${encodeURIComponent(cleanAddr)}`;
+      }
       url = prefix + encodeURIComponent(queryPart);
+    }
+  }
+
+  // 카카오 URL에 한글이 미인코딩된 경우 인코딩 처리
+  if (url.startsWith('https://map.kakao.com/') && /[가-힣]/.test(url)) {
+    const qIdx = url.indexOf('?q=');
+    if (qIdx !== -1) {
+      const base = url.substring(0, qIdx + 3);
+      const query = url.substring(qIdx + 3);
+      url = base + encodeURIComponent(query);
     }
   }
 
