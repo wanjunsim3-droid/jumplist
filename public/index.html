@@ -215,6 +215,43 @@
           <!-- Member Approval List -->
           <div class="admin-section glass-panel">
             <h3><i class="fa-solid fa-users-gear"></i> 회원 가입 및 승인 관리</h3>
+
+            <!-- 회원 통계 카드 -->
+            <div class="member-stats" id="member-stats-row">
+              <div class="stat-card stat-total">
+                <div class="stat-num" id="stat-total">0</div>
+                <div class="stat-label">전체 회원</div>
+              </div>
+              <div class="stat-card stat-approved">
+                <div class="stat-num" id="stat-approved">0</div>
+                <div class="stat-label">승인 완료</div>
+              </div>
+              <div class="stat-card stat-pending">
+                <div class="stat-num" id="stat-pending">0</div>
+                <div class="stat-label">승인 대기</div>
+              </div>
+              <div class="stat-card stat-rejected">
+                <div class="stat-num" id="stat-rejected">0</div>
+                <div class="stat-label">거절</div>
+              </div>
+            </div>
+
+            <!-- 검색 & 필터 -->
+            <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+              <input type="text" id="member-search" class="form-control"
+                placeholder="이름 또는 아이디 검색..."
+                oninput="loadAdminUsers()"
+                style="flex: 1; min-width: 160px;">
+              <select id="member-status-filter" class="form-control"
+                onchange="loadAdminUsers()"
+                style="width: auto;">
+                <option value="">전체 상태</option>
+                <option value="PENDING">대기 중</option>
+                <option value="APPROVED">승인 완료</option>
+                <option value="REJECTED">거절</option>
+              </select>
+            </div>
+
             <div class="admin-table-wrapper">
               <table class="admin-table">
                 <thead>
@@ -224,6 +261,7 @@
                     <th>연락처</th>
                     <th>가입일</th>
                     <th>상태</th>
+                    <th>상세</th>
                     <th>동작</th>
                   </tr>
                 </thead>
@@ -231,6 +269,10 @@
                   <!-- Dynamic user list inject here -->
                 </tbody>
               </table>
+            </div>
+            <div id="member-empty-msg" style="display:none; text-align:center; padding: 30px; color: var(--text-secondary);">
+              <i class="fa-solid fa-user-slash" style="font-size:2rem; opacity:0.4; display:block; margin-bottom:8px;"></i>
+              검색 결과가 없습니다.
             </div>
           </div>
 
@@ -417,6 +459,62 @@
               <i class="fa-solid fa-map-location-dot"></i> 네이버지도 바로가기
             </a>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 회원 상세 모달 -->
+  <div class="modal" id="member-modal">
+    <div class="modal-content glass-panel" style="max-width: 460px;">
+      <span class="modal-close" onclick="closeMemberModal()">&times;</span>
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+        <div id="member-modal-avatar"
+          style="width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
+                 justify-content: center; font-size: 1.6rem; font-weight: 700; flex-shrink: 0;
+                 background: linear-gradient(135deg, #3b82f6, #10b981); color: white;">
+        </div>
+        <div>
+          <div class="modal-title" id="member-modal-name" style="margin-bottom: 4px; font-size: 1.3rem;"></div>
+          <span class="status-badge" id="member-modal-status-badge"></span>
+          <span class="user-badge" id="member-modal-role-badge" style="margin-left: 6px;"></span>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <div class="member-detail-grid">
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-id-card"></i> 아이디</div>
+            <div class="member-detail-value" id="member-modal-username"></div>
+          </div>
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-phone"></i> 연락처</div>
+            <div class="member-detail-value" id="member-modal-phone"></div>
+          </div>
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-calendar-days"></i> 가입 신청일</div>
+            <div class="member-detail-value" id="member-modal-date"></div>
+          </div>
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-shield-halved"></i> 권한</div>
+            <div class="member-detail-value" id="member-modal-role"></div>
+          </div>
+        </div>
+
+        <!-- 승인/거절 액션 버튼 -->
+        <div id="member-modal-actions" style="margin-top: 24px; display: flex; gap: 10px;">
+          <button class="btn btn-success" style="flex: 1;" id="member-modal-approve-btn"
+            onclick="memberModalAction('APPROVED')">
+            <i class="fa-solid fa-user-check"></i> 승인
+          </button>
+          <button class="btn btn-danger" style="flex: 1;" id="member-modal-reject-btn"
+            onclick="memberModalAction('REJECTED')">
+            <i class="fa-solid fa-user-xmark"></i> 거절
+          </button>
+        </div>
+        <div id="member-modal-self-note"
+          style="display:none; text-align:center; margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+          <i class="fa-solid fa-circle-info"></i> 본인 계정은 수정할 수 없습니다.
         </div>
       </div>
     </div>

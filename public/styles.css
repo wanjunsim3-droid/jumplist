@@ -665,3 +665,87 @@ body {
 #kakao-notify-section h3 {
   color: var(--text-primary);
 }
+
+/* Member Stats Cards */
+.member-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .member-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+.stat-card {
+  padding: 14px 18px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  transition: var(--transition);
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.stat-num {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.stat-total   .stat-num { color: var(--text-primary); }
+.stat-approved .stat-num { color: var(--accent-green); }
+.stat-pending  .stat-num { color: #f59e0b; }
+.stat-rejected .stat-num { color: var(--accent-red); }
+
+.stat-approved { border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.04); }
+.stat-pending  { border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.04); }
+.stat-rejected { border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.04); }
+
+/* Member row hover */
+.member-row:hover {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+/* Member Detail Modal Grid */
+.member-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.member-detail-item {
+  background: rgba(15, 23, 42, 0.03);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.member-detail-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.member-detail-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}

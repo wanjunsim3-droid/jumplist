@@ -632,47 +632,160 @@ function closePropertyModal() {
 // --- ADMIN MOCK HANDLERS ---
 
 // Member list (Admin panel)
+let currentMemberModalId = null;
+
 function loadAdminUsers() {
-  const users = getLocalUsers();
+  const allUsers = getLocalUsers();
+  const searchVal = (document.getElementById('member-search')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('member-status-filter')?.value || '';
+
+  // 통계 업데이트
+  const approved = allUsers.filter(u => u.status === 'APPROVED').length;
+  const pending  = allUsers.filter(u => u.status === 'PENDING').length;
+  const rejected = allUsers.filter(u => u.status === 'REJECTED').length;
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('stat-total',    allUsers.length);
+  setEl('stat-approved', approved);
+  setEl('stat-pending',  pending);
+  setEl('stat-rejected', rejected);
+
+  // 필터링
+  const users = allUsers.filter(u => {
+    const matchSearch = !searchVal ||
+      u.name.toLowerCase().includes(searchVal) ||
+      u.username.toLowerCase().includes(searchVal) ||
+      (u.phone || '').includes(searchVal);
+    const matchStatus = !statusFilter || u.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
   const listContainer = document.getElementById('admin-users-list');
-  
+  const emptyMsg = document.getElementById('member-empty-msg');
+
+  if (users.length === 0) {
+    listContainer.innerHTML = '';
+    if (emptyMsg) emptyMsg.style.display = 'block';
+    return;
+  }
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
   listContainer.innerHTML = users.map(user => {
     const isSelf = user.username === currentUser.username;
     let actionButtons = '';
-    
     if (!isSelf) {
-      actionButtons = `
-        <button class="btn btn-success" style="padding: 5px 10px; font-size: 0.75rem;" onclick="updateUserStatus(${user.id}, 'APPROVED')">승인</button>
-        <button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.75rem;" onclick="updateUserStatus(${user.id}, 'REJECTED')">거절</button>
-      `;
+      if (user.status !== 'APPROVED') {
+        actionButtons += `<button class="btn btn-success" style="padding: 5px 10px; font-size: 0.75rem;" onclick="event.stopPropagation(); updateUserStatus(${user.id}, 'APPROVED')"><i class="fa-solid fa-check"></i> 승인</button>`;
+      }
+      if (user.status !== 'REJECTED') {
+        actionButtons += `<button class="btn btn-danger" style="padding: 5px 10px; font-size: 0.75rem; margin-left: 4px;" onclick="event.stopPropagation(); updateUserStatus(${user.id}, 'REJECTED')"><i class="fa-solid fa-xmark"></i> 거절</button>`;
+      }
+    } else {
+      actionButtons = `<span style="font-size: 0.75rem; color: var(--text-muted);">본인</span>`;
     }
 
     let statusClass = 'status-pending';
-    if (user.status === 'APPROVED') statusClass = 'status-approved';
-    if (user.status === 'REJECTED') statusClass = 'status-rejected';
+    let statusLabel = '대기';
+    if (user.status === 'APPROVED') { statusClass = 'status-approved'; statusLabel = '승인'; }
+    if (user.status === 'REJECTED') { statusClass = 'status-rejected'; statusLabel = '거절'; }
+
+    const dateStr = user.created_at
+      ? new Date(user.created_at).toLocaleDateString('ko-KR')
+      : '-';
 
     return `
-      <tr>
-        <td><strong>${user.name}</strong> ${user.role === 'ADMIN' ? '<span class="user-badge">관리자</span>' : ''}</td>
-        <td>${user.username}</td>
-        <td>${user.phone}</td>
-        <td>${new Date(user.created_at).toLocaleDateString()}</td>
-        <td><span class="status-badge ${statusClass}">${user.status}</span></td>
-        <td style="display: flex; gap: 8px;">${actionButtons}</td>
+      <tr class="member-row" onclick="openMemberModal(${user.id})" style="cursor: pointer;" title="클릭하여 상세 보기">
+        <td>
+          <strong>${user.name}</strong>
+          ${user.role === 'ADMIN' ? '<span class="user-badge" style="margin-left:4px;">관리자</span>' : ''}
+        </td>
+        <td style="font-family: monospace; font-size: 0.9rem;">${user.username}</td>
+        <td>${user.phone || '-'}</td>
+        <td style="font-size: 0.85rem; color: var(--text-secondary);">${dateStr}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;"
+            onclick="event.stopPropagation(); openMemberModal(${user.id})">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </td>
+        <td style="display: flex; gap: 4px; flex-wrap: wrap;">${actionButtons}</td>
       </tr>
     `;
   }).join('');
+}
+
+// 회원 상세 모달 열기
+function openMemberModal(userId) {
+  const users = getLocalUsers();
+  const user = users.find(u => u.id === userId);
+  if (!user) return;
+
+  currentMemberModalId = userId;
+  const isSelf = user.username === currentUser.username;
+
+  // 아바타: 이름 첫 글자
+  const avatar = document.getElementById('member-modal-avatar');
+  if (avatar) avatar.textContent = user.name ? user.name.charAt(0) : '?';
+
+  document.getElementById('member-modal-name').textContent = user.name;
+  document.getElementById('member-modal-username').textContent = user.username;
+  document.getElementById('member-modal-phone').textContent = user.phone || '-';
+  document.getElementById('member-modal-date').textContent = user.created_at
+    ? new Date(user.created_at).toLocaleString('ko-KR')
+    : '-';
+  document.getElementById('member-modal-role').textContent = user.role === 'ADMIN' ? '관리자 (ADMIN)' : '일반 회원 (USER)';
+
+  // 상태 배지
+  const statusBadge = document.getElementById('member-modal-status-badge');
+  statusBadge.className = 'status-badge';
+  if (user.status === 'APPROVED') { statusBadge.classList.add('status-approved'); statusBadge.textContent = '승인 완료'; }
+  else if (user.status === 'REJECTED') { statusBadge.classList.add('status-rejected'); statusBadge.textContent = '거절됨'; }
+  else { statusBadge.classList.add('status-pending'); statusBadge.textContent = '승인 대기'; }
+
+  // 권한 배지
+  const roleBadge = document.getElementById('member-modal-role-badge');
+  roleBadge.textContent = user.role === 'ADMIN' ? '관리자' : '회원';
+
+  // 버튼 표시
+  const actions = document.getElementById('member-modal-actions');
+  const selfNote = document.getElementById('member-modal-self-note');
+  const approveBtn = document.getElementById('member-modal-approve-btn');
+  const rejectBtn = document.getElementById('member-modal-reject-btn');
+
+  if (isSelf) {
+    if (actions) actions.style.display = 'none';
+    if (selfNote) selfNote.style.display = 'block';
+  } else {
+    if (actions) actions.style.display = 'flex';
+    if (selfNote) selfNote.style.display = 'none';
+    if (approveBtn) approveBtn.style.display = user.status !== 'APPROVED' ? 'flex' : 'none';
+    if (rejectBtn) rejectBtn.style.display = user.status !== 'REJECTED' ? 'flex' : 'none';
+  }
+
+  document.getElementById('member-modal').classList.add('active');
+}
+
+function closeMemberModal() {
+  document.getElementById('member-modal').classList.remove('active');
+  currentMemberModalId = null;
+}
+
+function memberModalAction(status) {
+  if (!currentMemberModalId) return;
+  updateUserStatus(currentMemberModalId, status);
+  closeMemberModal();
 }
 
 // Update User Approval status
 function updateUserStatus(userId, status) {
   const users = getLocalUsers();
   const user = users.find(u => u.id === userId);
-  
+
   if (user) {
     user.status = status;
     saveLocalUsers(users);
-    showToast(`회원의 상태가 ${status}로 변경되었습니다.`, 'success');
+    const label = status === 'APPROVED' ? '승인' : status === 'REJECTED' ? '거절' : status;
+    showToast(`${user.name} 회원이 ${label} 처리되었습니다.`, 'success');
     loadAdminUsers();
   } else {
     showToast('해당 사용자를 찾을 수 없습니다.', 'error');
