@@ -286,7 +286,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Fetch properties.json static file
 async function fetchPropertiesJson() {
   try {
-    const res = await fetch('properties.json');
+    const cacheBuster = new Date().getTime();
+    const res = await fetch(`properties.json?t=${cacheBuster}`);
     if (res.ok) {
       allProperties = await res.json();
       console.log(`Loaded ${allProperties.length} properties statically.`);
