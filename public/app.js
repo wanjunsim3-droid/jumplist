@@ -75,15 +75,38 @@ async function initFirebase() {
     // 회원 목록 실시간 가져오기 및 동기화 리스너 바인딩
     firebase.database().ref('users').on('value', (snapshot) => {
       const data = snapshot.val();
-      if (data && Array.isArray(data)) {
-        // 로컬에 저장하고 회원 정보 갱신
-        safeSetItem('mock_users', JSON.stringify(data));
-        console.log('[Firebase] 회원 목록 실시간 갱신 완료:', data.length);
+      if (data) {
+        let usersArray = [];
+        if (Array.isArray(data)) {
+          usersArray = data.filter(Boolean);
+        } else if (typeof data === 'object') {
+          usersArray = Object.keys(data).map(key => data[key]).filter(Boolean);
+        }
         
-        // 현재 화면 상태가 어드민 뷰라면 목록 실시간 갱신
-        const adminView = document.getElementById('admin-view');
-        if (adminView && adminView.style.display !== 'none') {
-          loadAdminUsers();
+        if (usersArray.length > 0) {
+          safeSetItem('mock_users', JSON.stringify(usersArray));
+          console.log('[Firebase] 회원 목록 실시간 갱신 완료:', usersArray.length);
+          
+          // 현재 화면 상태가 어드민 뷰라면 목록 실시간 갱신
+          const adminView = document.getElementById('admin-view');
+          if (adminView && adminView.style.display !== 'none') {
+            loadAdminUsers();
+          }
+        } else {
+          // 비어있는 상태일 경우 기본 관리자 추가
+          const defaultUsers = [
+            {
+              id: 1,
+              username: 'admin',
+              password: 'adminpassword123',
+              name: '관리자',
+              phone: '010-0000-0000',
+              role: 'ADMIN',
+              status: 'APPROVED',
+              created_at: new Date().toISOString()
+            }
+          ];
+          firebase.database().ref('users').set(defaultUsers);
         }
       } else {
         // 데이터가 없는 초기 상태면 기본 관리자 계정 생성 및 업로드
