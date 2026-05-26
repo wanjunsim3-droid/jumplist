@@ -4,6 +4,7 @@ const fs = require('fs');
 
 const excelFilePath = path.join(__dirname, '힘찬 2026년 매물정리 에이치12 (1) (6) (1).xlsx');
 const outputJsonPath = path.join(__dirname, 'public', 'properties.json');
+const rootJsonPath = path.join(__dirname, 'properties.json');
 
 if (!fs.existsSync(excelFilePath)) {
   console.error('Excel file not found!');
@@ -241,4 +242,5 @@ workbook.SheetNames.forEach((sheetName) => {
 });
 
 fs.writeFileSync(outputJsonPath, JSON.stringify(allProperties, null, 2), 'utf-8');
-console.log(`Generated public/properties.json with ${allProperties.length} items.`);
+fs.writeFileSync(rootJsonPath, JSON.stringify(allProperties, null, 2), 'utf-8');
+console.log(`Generated public/properties.json and root properties.json with ${allProperties.length} items.`);
