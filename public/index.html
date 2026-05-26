@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Kakao SDK -->
   <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
@@ -399,6 +402,48 @@
           <div id="kakao-status-box" style="margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: rgba(0,0,0,0.15); font-size: 0.88rem; display: flex; align-items: center; gap: 10px;">
             <span id="kakao-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #888; display: inline-block; flex-shrink: 0;"></span>
             <span id="kakao-status-text">상태 확인 중...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Firebase 데이터베이스 연동 설정 섹션 -->
+      <div style="margin-top: 30px;">
+        <div class="admin-section glass-panel" id="firebase-config-section">
+          <h3><i class="fa-solid fa-database" style="color: #FFCA28;"></i> Firebase 실시간 회원 동기화 설정</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+            모든 기기의 회원가입 신청 내역과 승인 완료 상태를 실시간으로 중앙 서버에 연동합니다.<br>
+            <strong style="color: #FFCA28;">Firebase Console</strong>에서 생성한 무료 실시간 데이터베이스(Realtime DB) 설정값을 입력하세요.
+          </p>
+
+          <div class="firebase-step">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="form-group-sub">
+                <label for="firebase-db-url-input" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">Database URL</label>
+                <input type="text" id="firebase-db-url-input" class="form-control"
+                  placeholder="https://your-project-default-rtdb.firebaseio.com/"
+                  style="font-family: monospace; font-size: 0.85rem;">
+              </div>
+              <div class="form-group-sub">
+                <label for="firebase-api-key-input" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">API Key</label>
+                <input type="text" id="firebase-api-key-input" class="form-control"
+                  placeholder="AIzaSyA..."
+                  style="font-family: monospace; font-size: 0.85rem;">
+              </div>
+              <div style="text-align: right; margin-top: 5px;">
+                <button class="btn btn-primary" onclick="saveFirebaseConfig()" style="font-weight: 600;">
+                  <i class="fa-solid fa-floppy-disk"></i> 설정 저장 및 연결
+                </button>
+              </div>
+            </div>
+            <p style="color: var(--text-muted, #888); font-size: 0.78rem; margin-top: 10px; line-height: 1.4;">
+              👉 <a href="https://console.firebase.google.com" target="_blank" style="color: #4e9eff;">console.firebase.google.com</a> 접속 → 프로젝트 생성 → 빌드 → Realtime Database 생성 → 규칙 탭에서 <code>".read": true, ".write": true</code> 설정 (웹 클라이언트 통신용)
+            </p>
+          </div>
+
+          <!-- 연결 상태 표시 -->
+          <div id="firebase-status-box" style="margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: rgba(0,0,0,0.15); font-size: 0.88rem; display: flex; align-items: center; gap: 10px;">
+            <span id="firebase-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block; flex-shrink: 0;"></span>
+            <span id="firebase-status-text">Firebase 정보가 설정되지 않았습니다 (Mock 로컬 모드로 작동 중).</span>
           </div>
         </div>
       </div>

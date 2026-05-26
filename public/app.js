@@ -31,6 +31,140 @@ function safeRemoveItem(key) {
 }
 
 // ============================================================
+// Firebase 실시간 회원 동기화 기능 (Firebase User Database)
+// ============================================================
+let firebaseInitialized = false;
+
+async function initFirebase() {
+  let dbUrl = safeGetItem('firebase_db_url');
+  let apiKey = safeGetItem('firebase_api_key');
+
+  // firebase-config.json에서 설정 읽기 시도
+  if (!dbUrl || !apiKey) {
+    try {
+      const res = await fetch('firebase-config.json');
+      if (res.ok) {
+        const config = await res.json();
+        dbUrl = config.databaseURL || config.firebase_db_url || config.apiKeyInput; // 유연하게 매핑
+        apiKey = config.apiKey || config.firebase_api_key;
+        if (dbUrl && apiKey) {
+          safeSetItem('firebase_db_url', dbUrl);
+          safeSetItem('firebase_api_key', apiKey);
+        }
+      }
+    } catch (e) {
+      console.warn('[Firebase] Config file fetch failed, using local storage.');
+    }
+  }
+
+  if (!dbUrl || !apiKey) {
+    updateFirebaseStatusUI();
+    return;
+  }
+  try {
+    if (typeof firebase === 'undefined') return;
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey: apiKey,
+        databaseURL: dbUrl
+      });
+    }
+    firebaseInitialized = true;
+    updateFirebaseStatusUI();
+
+    // 회원 목록 실시간 가져오기 및 동기화 리스너 바인딩
+    firebase.database().ref('users').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data && Array.isArray(data)) {
+        // 로컬에 저장하고 회원 정보 갱신
+        safeSetItem('mock_users', JSON.stringify(data));
+        console.log('[Firebase] 회원 목록 실시간 갱신 완료:', data.length);
+        
+        // 현재 화면 상태가 어드민 뷰라면 목록 실시간 갱신
+        const adminView = document.getElementById('admin-view');
+        if (adminView && adminView.style.display !== 'none') {
+          loadAdminUsers();
+        }
+      } else {
+        // 데이터가 없는 초기 상태면 기본 관리자 계정 생성 및 업로드
+        const defaultUsers = [
+          {
+            id: 1,
+            username: 'admin',
+            password: 'adminpassword123',
+            name: '관리자',
+            phone: '010-0000-0000',
+            role: 'ADMIN',
+            status: 'APPROVED',
+            created_at: new Date().toISOString()
+          }
+        ];
+        firebase.database().ref('users').set(defaultUsers);
+      }
+    });
+  } catch (e) {
+    console.error('[Firebase] 초기화 실패:', e);
+    firebaseInitialized = false;
+    updateFirebaseStatusUI();
+  }
+}
+
+function updateFirebaseStatusUI() {
+  const dot = document.getElementById('firebase-status-dot');
+  const text = document.getElementById('firebase-status-text');
+  const dbUrlInput = document.getElementById('firebase-db-url-input');
+  const apiKeyInput = document.getElementById('firebase-api-key-input');
+
+  const dbUrl = safeGetItem('firebase_db_url');
+  const apiKey = safeGetItem('firebase_api_key');
+
+  if (dbUrlInput && dbUrl) dbUrlInput.value = dbUrl;
+  if (apiKeyInput && apiKey) apiKeyInput.value = apiKey;
+
+  if (!dot) return;
+
+  if (firebaseInitialized) {
+    dot.style.background = '#22c55e';
+    text.textContent = '✅ Firebase 연결됨 — 모든 기기의 회원 정보가 실시간 연동 중입니다.';
+  } else if (dbUrl && apiKey) {
+    dot.style.background = '#ef4444';
+    text.textContent = '❌ Firebase 연결 실패 — 설정 정보를 다시 확인해 주세요.';
+  } else {
+    dot.style.background = '#ef4444';
+    text.textContent = '⭕ Firebase 정보가 설정되지 않았습니다 (현재 이 폰에서만 가입 데이터가 저장됩니다).';
+  }
+}
+
+function saveFirebaseConfig() {
+  const dbUrlInput = document.getElementById('firebase-db-url-input');
+  const apiKeyInput = document.getElementById('firebase-api-key-input');
+  
+  const dbUrl = dbUrlInput ? dbUrlInput.value.trim() : '';
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+  if (!dbUrl || !apiKey) {
+    showToast('Database URL과 API Key를 모두 입력해 주세요.', 'error');
+    return;
+  }
+
+  safeSetItem('firebase_db_url', dbUrl);
+  safeSetItem('firebase_api_key', apiKey);
+  
+  showToast('설정 완료! 핸드폰 연동을 위해 firebase-config.json 파일도 갱신하여 깃허브에 배포해 주세요.', 'success');
+  initFirebase();
+}
+
+async function syncUsersToFirebase(users) {
+  if (!firebaseInitialized) return;
+  try {
+    await firebase.database().ref('users').set(users);
+    console.log('[Firebase] 데이터베이스에 유저 목록 업로드 완료');
+  } catch (e) {
+    console.error('[Firebase] 업로드 실패:', e);
+  }
+}
+
+// ============================================================
 // 카카오 알림 기능 (Kakao Notification)
 // ============================================================
 let kakaoInitialized = false;
@@ -231,6 +365,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Kakao SDK 초기화
   initKakao();
 
+  // Firebase 초기화 및 동기화 리스너 바인딩
+  initFirebase();
+
   // 연락처 자동 하이픈 이벤트 바인딩
   const registerPhoneInput = document.getElementById('register-phone');
   if (registerPhoneInput) {
@@ -362,8 +499,9 @@ function showView(viewId) {
     loadProperties(1);
   } else if (viewId === 'admin') {
     loadAdminUsers();
-    // 관리자 패널 진입 시 카카오 상태 갱신
+    // 관리자 패널 진입 시 카카오 및 Firebase 상태 갱신
     setTimeout(updateKakaoStatusUI, 100);
+    setTimeout(updateFirebaseStatusUI, 100);
   }
 }
 
@@ -429,6 +567,7 @@ function handleRegister(e) {
 
   users.push(newUser);
   saveLocalUsers(users);
+  syncUsersToFirebase(users);
 
   // 카카오톡 알림 발송 (관리자에게 나에게 보내기)
   sendKakaoNotification(newUser);
@@ -836,6 +975,7 @@ function updateUserStatus(userId, status) {
   if (user) {
     user.status = status;
     saveLocalUsers(users);
+    syncUsersToFirebase(users);
     const label = status === 'APPROVED' ? '승인' : status === 'REJECTED' ? '거절' : status;
     showToast(`${user.name} 회원이 ${label} 처리되었습니다.`, 'success');
     loadAdminUsers();

@@ -4,8 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>힘찬매물 - 비공개 회원제 매물장</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260527">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Kakao SDK -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
@@ -54,11 +59,11 @@
         <form id="login-form">
           <div class="form-group">
             <label for="login-username">아이디</label>
-            <input type="text" id="login-username" class="form-control" placeholder="아이디를 입력하세요" required>
+            <input type="text" id="login-username" class="form-control" placeholder="아이디를 입력하세요" autocomplete="username" required>
           </div>
           <div class="form-group">
             <label for="login-password">비밀번호</label>
-            <input type="password" id="login-password" class="form-control" placeholder="비밀번호를 입력하세요" required>
+            <input type="password" id="login-password" class="form-control" placeholder="비밀번호를 입력하세요" autocomplete="current-password" required>
           </div>
           <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">로그인</button>
         </form>
@@ -67,19 +72,19 @@
         <form id="register-form" style="display: none;">
           <div class="form-group">
             <label for="register-username">아이디</label>
-            <input type="text" id="register-username" class="form-control" placeholder="사용할 아이디" required>
+            <input type="text" id="register-username" class="form-control" placeholder="사용할 아이디" autocomplete="username" required>
           </div>
           <div class="form-group">
             <label for="register-password">비밀번호</label>
-            <input type="password" id="register-password" class="form-control" placeholder="비밀번호 (영문, 숫자 조합)" required>
+            <input type="password" id="register-password" class="form-control" placeholder="비밀번호 (영문, 숫자 조합)" autocomplete="new-password" required>
           </div>
           <div class="form-group">
             <label for="register-name">이름 (실명)</label>
-            <input type="text" id="register-name" class="form-control" placeholder="홍길동" required>
+            <input type="text" id="register-name" class="form-control" placeholder="홍길동" autocomplete="name" required>
           </div>
           <div class="form-group">
             <label for="register-phone">연락처</label>
-            <input type="text" id="register-phone" class="form-control" placeholder="010-1234-5678" required>
+            <input type="tel" id="register-phone" class="form-control" placeholder="010-1234-5678" inputmode="tel" autocomplete="tel" required>
           </div>
           <button type="submit" class="btn btn-success" style="width: 100%; margin-top: 10px;">회원가입 신청</button>
         </form>
@@ -213,6 +218,43 @@
           <!-- Member Approval List -->
           <div class="admin-section glass-panel">
             <h3><i class="fa-solid fa-users-gear"></i> 회원 가입 및 승인 관리</h3>
+
+            <!-- 회원 통계 카드 -->
+            <div class="member-stats" id="member-stats-row">
+              <div class="stat-card stat-total">
+                <div class="stat-num" id="stat-total">0</div>
+                <div class="stat-label">전체 회원</div>
+              </div>
+              <div class="stat-card stat-approved">
+                <div class="stat-num" id="stat-approved">0</div>
+                <div class="stat-label">승인 완료</div>
+              </div>
+              <div class="stat-card stat-pending">
+                <div class="stat-num" id="stat-pending">0</div>
+                <div class="stat-label">승인 대기</div>
+              </div>
+              <div class="stat-card stat-rejected">
+                <div class="stat-num" id="stat-rejected">0</div>
+                <div class="stat-label">거절</div>
+              </div>
+            </div>
+
+            <!-- 검색 & 필터 -->
+            <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+              <input type="text" id="member-search" class="form-control"
+                placeholder="이름 또는 아이디 검색..."
+                oninput="loadAdminUsers()"
+                style="flex: 1; min-width: 160px;">
+              <select id="member-status-filter" class="form-control"
+                onchange="loadAdminUsers()"
+                style="width: auto;">
+                <option value="">전체 상태</option>
+                <option value="PENDING">대기 중</option>
+                <option value="APPROVED">승인 완료</option>
+                <option value="REJECTED">거절</option>
+              </select>
+            </div>
+
             <div class="admin-table-wrapper">
               <table class="admin-table">
                 <thead>
@@ -222,6 +264,7 @@
                     <th>연락처</th>
                     <th>가입일</th>
                     <th>상태</th>
+                    <th>상세</th>
                     <th>동작</th>
                   </tr>
                 </thead>
@@ -229,6 +272,10 @@
                   <!-- Dynamic user list inject here -->
                 </tbody>
               </table>
+            </div>
+            <div id="member-empty-msg" style="display:none; text-align:center; padding: 30px; color: var(--text-secondary);">
+              <i class="fa-solid fa-user-slash" style="font-size:2rem; opacity:0.4; display:block; margin-bottom:8px;"></i>
+              검색 결과가 없습니다.
             </div>
           </div>
 
@@ -308,7 +355,100 @@
           </div>
         </div>
 
+      <!-- 카카오 알림 설정 섹션 -->
+      <div style="margin-top: 30px;">
+        <div class="admin-section glass-panel" id="kakao-notify-section">
+          <h3><i class="fa-brands fa-kaggle" style="color: #FEE500;"></i> 카카오톡 가입 알림 설정</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+            새 회원 가입 신청이 올 때마다 관리자 카카오톡으로 알림 메시지를 전송합니다.<br>
+            <strong style="color: var(--accent-yellow, #FEE500);">1회 설정하면 계속 유지됩니다.</strong> 토큰 만료(6시간) 시 재연결 필요.
+          </p>
+
+          <!-- Step 1: App Key 입력 -->
+          <div class="kakao-step" id="kakao-step-key">
+            <div class="step-label"><span class="step-num">1</span> 카카오 앱 키 입력</div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+              <input type="text" id="kakao-app-key-input" class="form-control"
+                placeholder="카카오 Developers JavaScript 앱 키 입력"
+                style="font-family: monospace; font-size: 0.85rem;">
+              <button class="btn btn-secondary" onclick="saveKakaoAppKey()" style="white-space: nowrap;">
+                <i class="fa-solid fa-floppy-disk"></i> 저장
+              </button>
+            </div>
+            <p style="color: var(--text-muted, #888); font-size: 0.78rem; margin-top: 8px;">
+              👉 <a href="https://developers.kakao.com" target="_blank" style="color: #4e9eff;">developers.kakao.com</a> → 내 애플리케이션 → 앱 키 → JavaScript 키
+            </p>
+          </div>
+
+          <!-- Step 2: 카카오 로그인 -->
+          <div class="kakao-step" style="margin-top: 20px;">
+            <div class="step-label"><span class="step-num">2</span> 카카오 계정 연결 (관리자 계정)</div>
+            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap;">
+              <button class="btn" id="kakao-login-btn" onclick="kakaoLogin()"
+                style="background: #FEE500; color: #3C1E1E; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_small.png"
+                  alt="kakao" style="width: 18px; height: 18px;"> 카카오로 시작하기
+              </button>
+              <button class="btn btn-secondary" id="kakao-logout-btn" onclick="kakaoLogout()" style="display: none;">
+                <i class="fa-solid fa-plug-circle-xmark"></i> 연결 해제
+              </button>
+              <button class="btn btn-secondary" id="kakao-test-btn" onclick="testKakaoNotification()" style="display: none;">
+                <i class="fa-solid fa-paper-plane"></i> 테스트 발송
+              </button>
+            </div>
+          </div>
+
+          <!-- 연결 상태 표시 -->
+          <div id="kakao-status-box" style="margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: rgba(0,0,0,0.15); font-size: 0.88rem; display: flex; align-items: center; gap: 10px;">
+            <span id="kakao-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #888; display: inline-block; flex-shrink: 0;"></span>
+            <span id="kakao-status-text">상태 확인 중...</span>
+          </div>
+        </div>
       </div>
+
+      <!-- Firebase 데이터베이스 연동 설정 섹션 -->
+      <div style="margin-top: 30px;">
+        <div class="admin-section glass-panel" id="firebase-config-section">
+          <h3><i class="fa-solid fa-database" style="color: #FFCA28;"></i> Firebase 실시간 회원 동기화 설정</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+            모든 기기의 회원가입 신청 내역과 승인 완료 상태를 실시간으로 중앙 서버에 연동합니다.<br>
+            <strong style="color: #FFCA28;">Firebase Console</strong>에서 생성한 무료 실시간 데이터베이스(Realtime DB) 설정값을 입력하세요.
+          </p>
+
+          <div class="firebase-step">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div class="form-group-sub">
+                <label for="firebase-db-url-input" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">Database URL</label>
+                <input type="text" id="firebase-db-url-input" class="form-control"
+                  placeholder="https://your-project-default-rtdb.firebaseio.com/"
+                  style="font-family: monospace; font-size: 0.85rem;">
+              </div>
+              <div class="form-group-sub">
+                <label for="firebase-api-key-input" style="font-size: 0.82rem; color: var(--text-secondary); display: block; margin-bottom: 5px;">API Key</label>
+                <input type="text" id="firebase-api-key-input" class="form-control"
+                  placeholder="AIzaSyA..."
+                  style="font-family: monospace; font-size: 0.85rem;">
+              </div>
+              <div style="text-align: right; margin-top: 5px;">
+                <button class="btn btn-primary" onclick="saveFirebaseConfig()" style="font-weight: 600;">
+                  <i class="fa-solid fa-floppy-disk"></i> 설정 저장 및 연결
+                </button>
+              </div>
+            </div>
+            <p style="color: var(--text-muted, #888); font-size: 0.78rem; margin-top: 10px; line-height: 1.4;">
+              👉 <a href="https://console.firebase.google.com" target="_blank" style="color: #4e9eff;">console.firebase.google.com</a> 접속 → 프로젝트 생성 → 빌드 → Realtime Database 생성 → 규칙 탭에서 <code>".read": true, ".write": true</code> 설정 (웹 클라이언트 통신용)
+            </p>
+          </div>
+
+          <!-- 연결 상태 표시 -->
+          <div id="firebase-status-box" style="margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: rgba(0,0,0,0.15); font-size: 0.88rem; display: flex; align-items: center; gap: 10px;">
+            <span id="firebase-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #ef4444; display: inline-block; flex-shrink: 0;"></span>
+            <span id="firebase-status-text">Firebase 정보가 설정되지 않았습니다 (Mock 로컬 모드로 작동 중).</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
     </section>
 
   </main>
@@ -369,6 +509,62 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- 회원 상세 모달 -->
+  <div class="modal" id="member-modal">
+    <div class="modal-content glass-panel" style="max-width: 460px;">
+      <span class="modal-close" onclick="closeMemberModal()">&times;</span>
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+        <div id="member-modal-avatar"
+          style="width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
+                 justify-content: center; font-size: 1.6rem; font-weight: 700; flex-shrink: 0;
+                 background: linear-gradient(135deg, #3b82f6, #10b981); color: white;">
+        </div>
+        <div>
+          <div class="modal-title" id="member-modal-name" style="margin-bottom: 4px; font-size: 1.3rem;"></div>
+          <span class="status-badge" id="member-modal-status-badge"></span>
+          <span class="user-badge" id="member-modal-role-badge" style="margin-left: 6px;"></span>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid var(--border-color); padding-top: 20px;">
+        <div class="member-detail-grid">
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-id-card"></i> 아이디</div>
+            <div class="member-detail-value" id="member-modal-username"></div>
+          </div>
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-phone"></i> 연락처</div>
+            <div class="member-detail-value" id="member-modal-phone"></div>
+          </div>
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-calendar-days"></i> 가입 신청일</div>
+            <div class="member-detail-value" id="member-modal-date"></div>
+          </div>
+          <div class="member-detail-item">
+            <div class="member-detail-label"><i class="fa-solid fa-shield-halved"></i> 권한</div>
+            <div class="member-detail-value" id="member-modal-role"></div>
+          </div>
+        </div>
+
+        <!-- 승인/거절 액션 버튼 -->
+        <div id="member-modal-actions" style="margin-top: 24px; display: flex; gap: 10px;">
+          <button class="btn btn-success" style="flex: 1;" id="member-modal-approve-btn"
+            onclick="memberModalAction('APPROVED')">
+            <i class="fa-solid fa-user-check"></i> 승인
+          </button>
+          <button class="btn btn-danger" style="flex: 1;" id="member-modal-reject-btn"
+            onclick="memberModalAction('REJECTED')">
+            <i class="fa-solid fa-user-xmark"></i> 거절
+          </button>
+        </div>
+        <div id="member-modal-self-note"
+          style="display:none; text-align:center; margin-top: 20px; color: var(--text-secondary); font-size: 0.9rem;">
+          <i class="fa-solid fa-circle-info"></i> 본인 계정은 수정할 수 없습니다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260527"></script>
 </body>
 </html>

@@ -769,3 +769,15 @@ body {
     font-size: 1rem;
   }
 }
+
+/* Firebase Connection Settings */
+.firebase-step {
+  padding: 18px 20px;
+  background: rgba(255, 202, 40, 0.05);
+  border: 1px solid rgba(255, 202, 40, 0.15);
+  border-radius: 12px;
+  margin-top: 15px;
+}
+.form-group-sub {
+  margin-bottom: 8px;
+}
