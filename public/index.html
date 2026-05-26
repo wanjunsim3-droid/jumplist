@@ -6,6 +6,8 @@
   <title>힘찬매물 - 비공개 회원제 매물장</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Kakao SDK -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -308,7 +310,58 @@
           </div>
         </div>
 
+      <!-- 카카오 알림 설정 섹션 -->
+      <div style="margin-top: 30px;">
+        <div class="admin-section glass-panel" id="kakao-notify-section">
+          <h3><i class="fa-brands fa-kaggle" style="color: #FEE500;"></i> 카카오톡 가입 알림 설정</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+            새 회원 가입 신청이 올 때마다 관리자 카카오톡으로 알림 메시지를 전송합니다.<br>
+            <strong style="color: var(--accent-yellow, #FEE500);">1회 설정하면 계속 유지됩니다.</strong> 토큰 만료(6시간) 시 재연결 필요.
+          </p>
+
+          <!-- Step 1: App Key 입력 -->
+          <div class="kakao-step" id="kakao-step-key">
+            <div class="step-label"><span class="step-num">1</span> 카카오 앱 키 입력</div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+              <input type="text" id="kakao-app-key-input" class="form-control"
+                placeholder="카카오 Developers JavaScript 앱 키 입력"
+                style="font-family: monospace; font-size: 0.85rem;">
+              <button class="btn btn-secondary" onclick="saveKakaoAppKey()" style="white-space: nowrap;">
+                <i class="fa-solid fa-floppy-disk"></i> 저장
+              </button>
+            </div>
+            <p style="color: var(--text-muted, #888); font-size: 0.78rem; margin-top: 8px;">
+              👉 <a href="https://developers.kakao.com" target="_blank" style="color: #4e9eff;">developers.kakao.com</a> → 내 애플리케이션 → 앱 키 → JavaScript 키
+            </p>
+          </div>
+
+          <!-- Step 2: 카카오 로그인 -->
+          <div class="kakao-step" style="margin-top: 20px;">
+            <div class="step-label"><span class="step-num">2</span> 카카오 계정 연결 (관리자 계정)</div>
+            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap;">
+              <button class="btn" id="kakao-login-btn" onclick="kakaoLogin()"
+                style="background: #FEE500; color: #3C1E1E; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_small.png"
+                  alt="kakao" style="width: 18px; height: 18px;"> 카카오로 시작하기
+              </button>
+              <button class="btn btn-secondary" id="kakao-logout-btn" onclick="kakaoLogout()" style="display: none;">
+                <i class="fa-solid fa-plug-circle-xmark"></i> 연결 해제
+              </button>
+              <button class="btn btn-secondary" id="kakao-test-btn" onclick="testKakaoNotification()" style="display: none;">
+                <i class="fa-solid fa-paper-plane"></i> 테스트 발송
+              </button>
+            </div>
+          </div>
+
+          <!-- 연결 상태 표시 -->
+          <div id="kakao-status-box" style="margin-top: 18px; padding: 12px 16px; border-radius: 10px; background: rgba(0,0,0,0.15); font-size: 0.88rem; display: flex; align-items: center; gap: 10px;">
+            <span id="kakao-status-dot" style="width: 10px; height: 10px; border-radius: 50%; background: #888; display: inline-block; flex-shrink: 0;"></span>
+            <span id="kakao-status-text">상태 확인 중...</span>
+          </div>
+        </div>
       </div>
+
+    </div>
     </section>
 
   </main>

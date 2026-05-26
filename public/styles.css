@@ -626,3 +626,42 @@ body {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Kakao Notification Settings */
+.kakao-step {
+  padding: 16px 20px;
+  background: rgba(254, 229, 0, 0.06);
+  border: 1px solid rgba(254, 229, 0, 0.2);
+  border-radius: 12px;
+}
+
+.step-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #FEE500;
+  color: #3C1E1E;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+#kakao-notify-section {
+  border: 1px solid rgba(254, 229, 0, 0.25);
+}
+
+#kakao-notify-section h3 {
+  color: var(--text-primary);
+}

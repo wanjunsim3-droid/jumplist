@@ -1,3 +1,151 @@
+// ============================================================
+// 카카오 알림 기능 (Kakao Notification)
+// ============================================================
+let kakaoInitialized = false;
+
+function initKakao() {
+  const appKey = localStorage.getItem('kakao_app_key');
+  if (!appKey) return;
+  try {
+    if (typeof Kakao === 'undefined') return;
+    if (!Kakao.isInitialized()) {
+      Kakao.init(appKey);
+    }
+    kakaoInitialized = true;
+  } catch (e) {
+    console.warn('Kakao init failed:', e);
+  }
+}
+
+function isKakaoConnected() {
+  if (!kakaoInitialized || typeof Kakao === 'undefined') return false;
+  return !!Kakao.Auth.getAccessToken();
+}
+
+function updateKakaoStatusUI() {
+  const dot = document.getElementById('kakao-status-dot');
+  const text = document.getElementById('kakao-status-text');
+  const loginBtn = document.getElementById('kakao-login-btn');
+  const logoutBtn = document.getElementById('kakao-logout-btn');
+  const testBtn = document.getElementById('kakao-test-btn');
+  const keyInput = document.getElementById('kakao-app-key-input');
+
+  if (!dot) return;
+
+  const appKey = localStorage.getItem('kakao_app_key');
+  if (keyInput && appKey) keyInput.value = appKey;
+
+  if (isKakaoConnected()) {
+    dot.style.background = '#22c55e';
+    text.textContent = '✅ 카카오 연결됨 — 새 가입 신청 시 카카오톡으로 알림이 발송됩니다.';
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+    if (testBtn) testBtn.style.display = 'inline-flex';
+  } else if (appKey && kakaoInitialized) {
+    dot.style.background = '#f59e0b';
+    text.textContent = '⚠️ 앱 키는 설정됨 — 카카오 로그인이 필요합니다. (토큰 만료 또는 미연결)';
+    if (loginBtn) loginBtn.style.display = 'inline-flex';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (testBtn) testBtn.style.display = 'none';
+  } else {
+    dot.style.background = '#ef4444';
+    text.textContent = appKey ? '❌ 카카오 SDK 초기화 실패 — 앱 키를 다시 확인해 주세요.' : '⭕ 카카오 앱 키를 입력하고 저장하세요.';
+    if (loginBtn) loginBtn.style.display = 'inline-flex';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (testBtn) testBtn.style.display = 'none';
+  }
+}
+
+function saveKakaoAppKey() {
+  const input = document.getElementById('kakao-app-key-input');
+  const key = input ? input.value.trim() : '';
+  if (!key) {
+    showToast('앱 키를 입력해 주세요.', 'error');
+    return;
+  }
+  localStorage.setItem('kakao_app_key', key);
+  kakaoInitialized = false;
+  initKakao();
+  showToast('앱 키가 저장되었습니다. 이제 카카오 로그인을 진행해 주세요.', 'success');
+  updateKakaoStatusUI();
+}
+
+function kakaoLogin() {
+  if (!kakaoInitialized) {
+    showToast('먼저 카카오 앱 키를 저장해 주세요.', 'error');
+    return;
+  }
+  Kakao.Auth.login({
+    scope: 'talk_message',
+    success: function () {
+      showToast('카카오 연결 성공! 이제 가입 알림이 자동 발송됩니다. 🎉', 'success');
+      updateKakaoStatusUI();
+    },
+    fail: function (err) {
+      console.error('Kakao login failed:', err);
+      showToast('카카오 로그인 실패: ' + (err.error_description || JSON.stringify(err)), 'error');
+    }
+  });
+}
+
+function kakaoLogout() {
+  if (!kakaoInitialized) return;
+  Kakao.Auth.logout(function () {
+    showToast('카카오 연결이 해제되었습니다.', 'success');
+    updateKakaoStatusUI();
+  });
+}
+
+async function sendKakaoNotification(user) {
+  if (!isKakaoConnected()) return;
+  const now = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
+  try {
+    await Kakao.API.request({
+      url: '/v2/api/talk/memo/default/send',
+      data: {
+        template_object: {
+          object_type: 'text',
+          text: [
+            '🏠 힘찬매물 새 가입 신청',
+            '─────────────────',
+            `이름   : ${user.name}`,
+            `아이디 : ${user.username}`,
+            `연락처 : ${user.phone}`,
+            `시간   : ${now}`,
+            '─────────────────',
+            '관리자 패널에서 승인해 주세요.'
+          ].join('\n'),
+          link: {
+            web_url: 'https://wanjunsim3-droid.github.io/jumplist/',
+            mobile_web_url: 'https://wanjunsim3-droid.github.io/jumplist/'
+          }
+        }
+      }
+    });
+    console.log('[Kakao] 알림 발송 성공');
+  } catch (err) {
+    console.warn('[Kakao] 알림 발송 실패:', err);
+    // 토큰 만료 시 재연결 유도
+    if (err.result_code === -401) {
+      updateKakaoStatusUI();
+    }
+  }
+}
+
+async function testKakaoNotification() {
+  if (!isKakaoConnected()) {
+    showToast('카카오 연결 후 테스트하세요.', 'error');
+    return;
+  }
+  await sendKakaoNotification({
+    name: '테스트 사용자',
+    username: 'test_user',
+    phone: '010-0000-0000'
+  });
+  showToast('테스트 메시지를 카카오톡으로 발송했습니다!', 'success');
+}
+
+// ============================================================
 // Global Application State (Static Client-Side Mode)
 let currentUser = null;
 let allProperties = []; // Holds all 1837 property items in memory
@@ -42,6 +190,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Pre-fetch all property data
   await fetchPropertiesJson();
+
+  // Kakao SDK 초기화
+  initKakao();
 
   if (token && sessionUser) {
     currentUser = JSON.parse(sessionUser);
@@ -159,6 +310,8 @@ function showView(viewId) {
     loadProperties(1);
   } else if (viewId === 'admin') {
     loadAdminUsers();
+    // 관리자 패널 진입 시 카카오 상태 갱신
+    setTimeout(updateKakaoStatusUI, 100);
   }
 }
 
@@ -224,6 +377,9 @@ function handleRegister(e) {
 
   users.push(newUser);
   saveLocalUsers(users);
+
+  // 카카오톡 알림 발송 (관리자에게 나에게 보내기)
+  sendKakaoNotification(newUser);
 
   showToast('회원가입 신청이 완료되었습니다. 관리자 승인을 대기해 주세요.', 'success');
   switchAuthTab('login');
