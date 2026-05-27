@@ -36,25 +36,30 @@ function safeRemoveItem(key) {
 let firebaseInitialized = false;
 
 async function initFirebase() {
-  let dbUrl = safeGetItem('firebase_db_url');
-  let apiKey = safeGetItem('firebase_api_key');
+  let dbUrl = null;
+  let apiKey = null;
 
-  // firebase-config.json에서 설정 읽기 시도
-  if (!dbUrl || !apiKey) {
-    try {
-      const res = await fetch('firebase-config.json');
-      if (res.ok) {
-        const config = await res.json();
-        dbUrl = config.databaseURL || config.firebase_db_url || config.apiKeyInput; // 유연하게 매핑
-        apiKey = config.apiKey || config.firebase_api_key;
-        if (dbUrl && apiKey) {
-          safeSetItem('firebase_db_url', dbUrl);
-          safeSetItem('firebase_api_key', apiKey);
-        }
+  // 항상 캐시를 타지 않는 최신 서버 배포(firebase-config.json)를 먼저 가져옴
+  try {
+    const cacheBuster = new Date().getTime();
+    const res = await fetch(`firebase-config.json?cb=${cacheBuster}`);
+    if (res.ok) {
+      const config = await res.json();
+      dbUrl = config.databaseURL || config.firebase_db_url || config.apiKeyInput;
+      apiKey = config.apiKey || config.firebase_api_key;
+      if (dbUrl && apiKey) {
+        safeSetItem('firebase_db_url', dbUrl);
+        safeSetItem('firebase_api_key', apiKey);
       }
-    } catch (e) {
-      console.warn('[Firebase] Config file fetch failed, using local storage.');
     }
+  } catch (e) {
+    console.warn('[Firebase] Config file fetch failed, trying local storage fallback.');
+  }
+
+  // 만약 서버에서 읽어오는 데 실패했다면 로컬 스토리지 캐시를 fallback으로 사용
+  if (!dbUrl || !apiKey) {
+    dbUrl = safeGetItem('firebase_db_url');
+    apiKey = safeGetItem('firebase_api_key');
   }
 
   if (!dbUrl || !apiKey) {
