@@ -178,12 +178,18 @@ function saveFirebaseConfig() {
 }
 
 async function syncUsersToFirebase(users) {
-  if (!firebaseInitialized) return;
+  if (!firebaseInitialized) {
+    showToast('Firebase가 연결되지 않았습니다. 실시간 설정 상태를 확인해 주세요.', 'error');
+    return false;
+  }
   try {
     await firebase.database().ref('users').set(users);
     console.log('[Firebase] 데이터베이스에 유저 목록 업로드 완료');
+    return true;
   } catch (e) {
     console.error('[Firebase] 업로드 실패:', e);
+    showToast('실시간 DB 저장 실패: ' + e.message, 'error');
+    return false;
   }
 }
 
@@ -564,7 +570,7 @@ function handleLogin(e) {
 }
 
 // Handle Register (Mock)
-function handleRegister(e) {
+async function handleRegister(e) {
   e.preventDefault();
   const username = document.getElementById('register-username').value.trim();
   const password = document.getElementById('register-password').value;
@@ -588,9 +594,16 @@ function handleRegister(e) {
     created_at: new Date().toISOString()
   };
 
-  users.push(newUser);
-  saveLocalUsers(users);
-  syncUsersToFirebase(users);
+  const updatedUsers = [...users, newUser];
+
+  // Firebase 실시간 DB에 먼저 저장 시도
+  const syncSuccess = await syncUsersToFirebase(updatedUsers);
+  if (!syncSuccess) {
+    // 동기화 실패 시 로컬 스토리지에 가입 정보를 기록하지 않고 가입 중단
+    return;
+  }
+
+  saveLocalUsers(updatedUsers);
 
   // 카카오톡 알림 발송 (관리자에게 나에게 보내기)
   sendKakaoNotification(newUser);
